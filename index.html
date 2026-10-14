@@ -1,0 +1,234 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Average Costs Explorer</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 18px;
+    color: #243447;
+    background: #f5f8fc;
+  }
+  h1, h2 { color: #164e7a; }
+  .panel {
+    background: white;
+    padding: 20px;
+    margin: 16px 0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px #00000012;
+  }
+  input[type="range"] { width: 100%; }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+    gap: 10px;
+  }
+  .metric {
+    background: #edf4fb;
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .metric strong { display: block; margin-top: 8px; font-size: 22px; }
+  canvas { width: 100%; height: 380px; }
+  button {
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 7px;
+    background: #164e7a;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover { background: #0d3657; }
+  select { padding: 8px; max-width: 100%; }
+  .feedback { font-weight: bold; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Average Costs Explorer</h1>
+<p>
+  Explore how a bakery's costs change as it produces more bread.
+  Move the slider and observe the cost calculations and graph.
+</p>
+
+<div class="panel">
+  <h2>1. Choose output</h2>
+  <label for="quantity">
+    Quantity produced: <strong id="qLabel">10</strong> units
+  </label>
+  <input id="quantity" type="range" min="1" max="30" value="10">
+  <p>Fixed cost (FC): $100</p>
+  <p>Variable cost (VC): 2Q + 0.5Q²</p>
+</div>
+
+<div class="panel">
+  <h2>2. Your cost results</h2>
+  <div class="metrics">
+    <div class="metric">Total Cost (TC)<strong id="tc">$0</strong></div>
+    <div class="metric">AFC<strong id="afc">$0</strong></div>
+    <div class="metric">AVC<strong id="avc">$0</strong></div>
+    <div class="metric">ATC<strong id="atc">$0</strong></div>
+    <div class="metric">MC<strong id="mc">$0</strong></div>
+  </div>
+  <p id="explanation"></p>
+</div>
+
+<div class="panel">
+  <h2>3. Explore the cost curves</h2>
+  <p>
+    <span style="color:#2878b5">● AFC</span>
+    &nbsp; <span style="color:#e58b24">● AVC</span>
+    &nbsp; <span style="color:#26966f">● ATC</span>
+    &nbsp; <span style="color:#b34dba">● MC</span>
+  </p>
+  <canvas id="chart" width="900" height="430"
+          role="img"
+          aria-label="Graph of average fixed, average variable,
+          average total, and marginal costs by output"></canvas>
+</div>
+
+<div class="panel">
+  <h2>4. Check your understanding</h2>
+  <p>What happens to average fixed cost when output increases?</p>
+  <select id="answer">
+    <option value="">Choose an answer</option>
+    <option value="a">It always increases.</option>
+    <option value="b">It decreases because fixed cost is spread over more units.</option>
+    <option value="c">It remains constant.</option>
+  </select>
+  <button onclick="checkAnswer()">Check answer</button>
+  <p id="feedback" class="feedback" aria-live="polite"></p>
+</div>
+
+<script>
+const FC = 100;
+const qSlider = document.getElementById("quantity");
+const money = n => "$" + n.toFixed(2);
+
+function costs(q) {
+  const VC = 2 * q + 0.5 * q * q;
+  const TC = FC + VC;
+  return {
+    tc: TC,
+    afc: FC / q,
+    avc: VC / q,
+    atc: TC / q,
+    mc: 2 + q
+  };
+}
+
+function update() {
+  const q = Number(qSlider.value);
+  const c = costs(q);
+
+  document.getElementById("qLabel").textContent = q;
+  for (const key of ["tc", "afc", "avc", "atc", "mc"]) {
+    document.getElementById(key).textContent = money(c[key]);
+  }
+
+  document.getElementById("explanation").textContent =
+    "At " + q + " units, each unit costs an average of " +
+    money(c.atc) + ". Average fixed cost is " + money(c.afc) +
+    " per unit.";
+
+  drawChart(q);
+}
+
+function drawChart(currentQ) {
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const pad = { left: 65, right: 20, top: 20, bottom: 55 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+  const maxY = 110;
+
+  const x = q => pad.left + (q - 1) / 29 * plotW;
+  const y = value => pad.top + plotH - value / maxY * plotH;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = "14px Arial";
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#dce4ed";
+  ctx.fillStyle = "#243447";
+
+  for (let v = 0; v <= 100; v += 20) {
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y(v));
+    ctx.lineTo(W - pad.right, y(v));
+    ctx.stroke();
+    ctx.fillText("$" + v, 15, y(v) + 5);
+  }
+
+  for (let q = 1; q <= 30; q += 5) {
+    ctx.beginPath();
+    ctx.moveTo(x(q), pad.top);
+    ctx.lineTo(x(q), H - pad.bottom);
+    ctx.stroke();
+    ctx.fillText(q, x(q) - 5, H - pad.bottom + 22);
+  }
+
+  ctx.fillText("Output (Q)", W / 2 - 30, H - 10);
+  ctx.save();
+  ctx.translate(18, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("Cost per unit ($)", 0, 0);
+  ctx.restore();
+
+  const series = [
+    { key: "afc", color: "#2878b5" },
+    { key: "avc", color: "#e58b24" },
+    { key: "atc", color: "#26966f" },
+    { key: "mc", color: "#b34dba" }
+  ];
+
+  for (const s of series) {
+    ctx.beginPath();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 3;
+    for (let q = 1; q <= 30; q++) {
+      const value = costs(q)[s.key];
+      if (q === 1) ctx.moveTo(x(q), y(value));
+      else ctx.lineTo(x(q), y(value));
+    }
+    ctx.stroke();
+  }
+
+  // Mark the selected output on the ATC curve.
+  const selected = costs(currentQ);
+  ctx.beginPath();
+  ctx.arc(x(currentQ), y(selected.atc), 7, 0, Math.PI * 2);
+  ctx.fillStyle = "#111827";
+  ctx.fill();
+  ctx.fillText("Q = " + currentQ, x(currentQ) + 9,
+               y(selected.atc) - 10);
+}
+
+function checkAnswer() {
+  const answer = document.getElementById("answer").value;
+  const feedback = document.getElementById("feedback");
+
+  if (answer === "b") {
+    feedback.textContent =
+      "Correct! The same fixed cost is spread over more units.";
+    feedback.style.color = "green";
+  } else if (answer === "") {
+    feedback.textContent = "Please select an answer first.";
+    feedback.style.color = "#9a6700";
+  } else {
+    feedback.textContent =
+      "Not quite. Remember: AFC = fixed cost divided by quantity.";
+    feedback.style.color = "#b42318";
+  }
+}
+
+qSlider.addEventListener("input", update);
+update();
+</script>
+</body>
+</html>
